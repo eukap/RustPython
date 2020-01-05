@@ -37,7 +37,7 @@ struct CompileContext {
     func: FunctionContext,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 enum FunctionContext {
     NoFunction,
     Function,
@@ -1570,6 +1570,8 @@ impl<O: OutputStream> Compiler<O> {
         self.set_source_location(&expression.location);
 
         use ast::ExpressionType::*;
+        #[allow(unused_imports)] // not unused, overrides ast::ExpressionType::None
+        use Option::None;
         match &expression.node {
             Call {
                 function,
@@ -1660,22 +1662,30 @@ impl<O: OutputStream> Compiler<O> {
             Yield { value } => {
                 if !self.ctx.in_func() {
                     return Err(CompileError {
-                        statement: Option::None,
+                        statement: None,
                         error: CompileErrorType::InvalidYield,
                         location: self.current_source_location.clone(),
-                        source_path: Option::None,
+                        source_path: None,
                     });
                 }
                 self.mark_generator();
                 match value {
                     Some(expression) => self.compile_expression(expression)?,
-                    Option::None => self.emit(Instruction::LoadConst {
+                    None => self.emit(Instruction::LoadConst {
                         value: bytecode::Constant::None,
                     }),
                 };
                 self.emit(Instruction::YieldValue);
             }
             Await { value } => {
+                if self.ctx.func != FunctionContext::AsyncFunction {
+                    return Err(CompileError {
+                        statement: None,
+                        error: CompileErrorType::InvalidAwait,
+                        location: self.current_source_location.clone(),
+                        source_path: None,
+                    });
+                }
                 self.compile_expression(value)?;
                 self.emit(Instruction::GetAwaitable);
                 self.emit(Instruction::LoadConst {
@@ -1684,6 +1694,25 @@ impl<O: OutputStream> Compiler<O> {
                 self.emit(Instruction::YieldFrom);
             }
             YieldFrom { value } => {
+                match self.ctx.func {
+                    FunctionContext::NoFunction => {
+                        return Err(CompileError {
+                            statement: None,
+                            error: CompileErrorType::InvalidYieldFrom,
+                            location: self.current_source_location.clone(),
+                            source_path: None,
+                        })
+                    }
+                    FunctionContext::AsyncFunction => {
+                        return Err(CompileError {
+                            statement: None,
+                            error: CompileErrorType::AsyncYieldFrom,
+                            location: self.current_source_location.clone(),
+                            source_path: None,
+                        })
+                    }
+                    FunctionContext::Function => {}
+                }
                 self.mark_generator();
                 self.compile_expression(value)?;
                 self.emit(Instruction::GetIter);
@@ -1702,7 +1731,7 @@ impl<O: OutputStream> Compiler<O> {
                     value: bytecode::Constant::Boolean { value: false },
                 });
             }
-            None => {
+            ast::ExpressionType::None => {
                 self.emit(Instruction::LoadConst {
                     value: bytecode::Constant::None,
                 });
@@ -1756,12 +1785,12 @@ impl<O: OutputStream> Compiler<O> {
             }
             Starred { .. } => {
                 return Err(CompileError {
-                    statement: Option::None,
+                    statement: None,
                     error: CompileErrorType::SyntaxError(std::string::String::from(
                         "Invalid starred expression",
                     )),
                     location: self.current_source_location.clone(),
-                    source_path: Option::None,
+                    source_path: None,
                 });
             }
             IfExpression { test, body, orelse } => {
