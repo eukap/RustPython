@@ -54,6 +54,8 @@ pub enum CompileErrorType {
     InvalidContinue,
     InvalidReturn,
     InvalidYield,
+    InvalidFuturePlacement,
+    InvalidFutureFeature(String),
 }
 
 impl CompileError {
@@ -96,6 +98,12 @@ impl fmt::Display for CompileError {
             CompileErrorType::InvalidContinue => "'continue' outside loop".to_owned(),
             CompileErrorType::InvalidReturn => "'return' outside function".to_owned(),
             CompileErrorType::InvalidYield => "'yield' outside function".to_owned(),
+            CompileErrorType::InvalidFuturePlacement => {
+                "from __future__ imports must occur at the beginning of the file".to_owned()
+            }
+            CompileErrorType::InvalidFutureFeature(feat) => {
+                format!("future feature {} is not defined", feat)
+            }
         };
 
         if let Some(statement) = &self.statement {
