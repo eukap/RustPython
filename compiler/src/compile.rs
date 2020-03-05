@@ -569,6 +569,16 @@ impl<O: OutputStream> Compiler<O> {
                 }
                 match value {
                     Some(v) => {
+                        if self.ctx.func == FunctionContext::AsyncFunction
+                            && self.current_output().is_generator()
+                        {
+                            return Err(CompileError {
+                                statement: None,
+                                error: CompileErrorType::AsyncReturnValue,
+                                location: statement.location.clone(),
+                                source_path: None,
+                            });
+                        }
                         self.compile_expression(v)?;
                     }
                     None => {
