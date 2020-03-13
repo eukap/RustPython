@@ -1580,8 +1580,6 @@ impl<O: OutputStream> Compiler<O> {
         self.set_source_location(&expression.location);
 
         use ast::ExpressionType::*;
-        #[allow(unused_imports)] // not unused, overrides ast::ExpressionType::None
-        use Option::None;
         match &expression.node {
             Call {
                 function,
@@ -1672,16 +1670,16 @@ impl<O: OutputStream> Compiler<O> {
             Yield { value } => {
                 if !self.ctx.in_func() {
                     return Err(CompileError {
-                        statement: None,
+                        statement: Option::None,
                         error: CompileErrorType::InvalidYield,
                         location: self.current_source_location.clone(),
-                        source_path: None,
+                        source_path: Option::None,
                     });
                 }
                 self.mark_generator();
                 match value {
                     Some(expression) => self.compile_expression(expression)?,
-                    None => self.emit(Instruction::LoadConst {
+                    Option::None => self.emit(Instruction::LoadConst {
                         value: bytecode::Constant::None,
                     }),
                 };
@@ -1690,10 +1688,10 @@ impl<O: OutputStream> Compiler<O> {
             Await { value } => {
                 if self.ctx.func != FunctionContext::AsyncFunction {
                     return Err(CompileError {
-                        statement: None,
+                        statement: Option::None,
                         error: CompileErrorType::InvalidAwait,
                         location: self.current_source_location.clone(),
-                        source_path: None,
+                        source_path: Option::None,
                     });
                 }
                 self.compile_expression(value)?;
@@ -1707,18 +1705,18 @@ impl<O: OutputStream> Compiler<O> {
                 match self.ctx.func {
                     FunctionContext::NoFunction => {
                         return Err(CompileError {
-                            statement: None,
+                            statement: Option::None,
                             error: CompileErrorType::InvalidYieldFrom,
                             location: self.current_source_location.clone(),
-                            source_path: None,
+                            source_path: Option::None,
                         })
                     }
                     FunctionContext::AsyncFunction => {
                         return Err(CompileError {
-                            statement: None,
+                            statement: Option::None,
                             error: CompileErrorType::AsyncYieldFrom,
                             location: self.current_source_location.clone(),
-                            source_path: None,
+                            source_path: Option::None,
                         })
                     }
                     FunctionContext::Function => {}
@@ -1795,12 +1793,12 @@ impl<O: OutputStream> Compiler<O> {
             }
             Starred { .. } => {
                 return Err(CompileError {
-                    statement: None,
+                    statement: Option::None,
                     error: CompileErrorType::SyntaxError(std::string::String::from(
                         "Invalid starred expression",
                     )),
                     location: self.current_source_location.clone(),
-                    source_path: None,
+                    source_path: Option::None,
                 });
             }
             IfExpression { test, body, orelse } => {
